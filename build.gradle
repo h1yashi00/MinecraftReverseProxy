@@ -1,0 +1,41 @@
+plugins {
+    id 'java'
+    id 'org.jetbrains.kotlin.jvm' version '1.6.21'
+}
+
+group 'org.example'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation "io.netty:netty-all:4.1.44.Final"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib"
+    // https://mvnrepository.com/artifact/org.json/json
+    implementation 'org.json:json:20220320'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+}
+
+configurations {
+    compile {
+        canBeResolved = true
+    }
+}
+
+jar {
+    manifest {
+        attributes(
+                'Class-Path': configurations.compile.collect { it.getName() }.join(' '),
+                'Main-Class': 'recraft.click.client.Main'
+        )
+    }
+    from { configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+}
+
+test {
+    useJUnitPlatform()
+}
