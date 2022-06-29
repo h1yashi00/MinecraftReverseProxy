@@ -1,22 +1,34 @@
 package click.recraft.protocol
 
+import click.recraft.handler.MinecraftFrontendHandler
 import click.recraft.objective.UserName
 import click.recraft.server.DefinedPacket
 import click.recraft.server.URLRequest
 import io.netty.buffer.ByteBuf
-import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelFutureListener
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.ByteToMessageDecoder
 import io.netty.util.CharsetUtil
-import io.netty.util.concurrent.FutureListener
 import java.lang.StringBuilder
 
 class HandshakeDecoder: ByteToMessageDecoder() {
     private val handshakePacketID = 0x00
     private val serverPort        = 25566
     private val serverAddress     = "recraft.click"
+    // somewhat client send this packet to server when client disconnect to to the server
+    private fun checkLegacyPing(buf: ByteBuf): Boolean {
+        if (buf.readByte() != 0xfe.toByte()) {
+            return false
+        }
+        if (buf.readByte() != 0x01.toByte()) {
+            return false
+        }
+        if (buf.readByte() != 0xfa.toByte()) {
+            return false
+        }
+        return true
+    }
 
     // forge handshake server name packet format
     // recraft.click                                  ↓ forge added packet ↓
@@ -40,16 +52,26 @@ class HandshakeDecoder: ByteToMessageDecoder() {
     private val responseStatus    = 0x01
     private val responseLogin     = 0x02
     override fun decode(ctx: ChannelHandlerContext, comeIn: ByteBuf, out: MutableList<Any>) {
+        // 最初に送られてくるパケットだけ検査して,このデコーダーのを削除する
+        ctx.pipeline().remove("handshake_decoder")
         val savedPacket = comeIn.copy()
+
+        val checkLegacyCopy = comeIn.copy()
+        if (checkLegacyPing(checkLegacyCopy)) {
+            forceDisconnect(ctx, comeIn, "legacy ping is not support on this server")
+            return
+        }
+        checkLegacyCopy.release()
+
        comeIn.copy().forEachByte {
            print(String.format("0x%x ", it))
            true
        }
         println()
+
         val strBuilder = StringBuilder()
         val length = DefinedPacket.readVarInt(comeIn)
         strBuilder.append("length: $length ")
-
 
         val packetID = DefinedPacket.readVarInt(comeIn)
         strBuilder.append("packetID: $packetID ")
@@ -72,14 +94,13 @@ class HandshakeDecoder: ByteToMessageDecoder() {
         slice.skipBytes(strLen)
         // forge add mods packet in server address field
         if (!(serverAdd == serverAddress || isForgeServerPacket(serverAdd))) {
-            println(serverAdd)
-            forceDisconnect(ctx, comeIn, "Please Type Domain Name")
+            forceDisconnect(ctx, comeIn, "直接IPアドレスを入力するのではなく､ドメイン名を入力してください")
             return
         }
         val port = DefinedPacket.readVarShort(slice)
         strBuilder.append("port: $port ")
         if (port != serverPort) {
-            forceDisconnect(ctx, comeIn, "invalid server port")
+            forceDisconnect(ctx, comeIn, "指定したポートが正しくありません")
             return
         }
         val nextState = DefinedPacket.readVarInt(slice) // expect 0x01 or 0x02
@@ -105,11 +126,10 @@ class HandshakeDecoder: ByteToMessageDecoder() {
                 return
             }
             out.add(ValidLoginPacket(playerName, savedPacket, strBuilder.toString()))
-            ctx.pipeline().remove("handshake_decoder")
             comeIn.clear()
         }
         else {
-            forceDisconnect(ctx, comeIn, "invalid login packet")
+            forceDisconnect(ctx, comeIn, "正しいパケットはありません")
         }
         return
     }
@@ -117,9 +137,7 @@ class HandshakeDecoder: ByteToMessageDecoder() {
     private fun forceDisconnect(ctx: ChannelHandlerContext, comeIn: ByteBuf, errorMsg: String) {
         ctx.channel().writeAndFlush("§c$errorMsg").addListener(object: ChannelFutureListener{
             override fun operationComplete(future: ChannelFuture) {
-                println("future: ${future.isSuccess}")
-                ctx.channel().disconnect()
-                ctx.channel().close()
+                MinecraftFrontendHandler.closeAndFlush()
                 comeIn.clear()
             }
         })

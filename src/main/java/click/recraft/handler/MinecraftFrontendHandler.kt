@@ -13,66 +13,57 @@ class MinecraftFrontendHandler(
     private val remotePort: Int
     ): ChannelInboundHandlerAdapter() {
     companion object {
-        fun closeAndFlush(channel: Channel) {
-            if (channel.isActive) {
-                channel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE)
+        private lateinit var outboundChannel: Channel
+        private lateinit var inboundChannel : Channel
+        fun closeAndFlush() {
+            if (this::inboundChannel.isInitialized) {
+                if (inboundChannel.isActive) {
+                    inboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE)
+                }
+            }
+            if (this::outboundChannel.isInitialized) {
+                if (inboundChannel.isActive) {
+                    outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE)
+                }
             }
         }
     }
-    private lateinit var outboundChannel: Channel
     private var success = false
     override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-        val inboundChannel = ctx.channel()
         if (msg is ValidLoginPacket) {
             val packet = msg as ValidLoginPacket
-            println("packet")
-            println("out bound channel is ${outboundChannel.isActive}")
-            packet.buf.copy().forEachByte {
-                print(String.format("0x%x ", it))
-                true
-            }
+//            packet.buf.copy().forEachByte {
+//                print(String.format("0x%x ", it))
+//                true
+//            }
             outboundChannel.writeAndFlush(packet.buf).addListener(object: ChannelFutureListener {
                 override fun operationComplete(future: ChannelFuture) {
                     if (future.isSuccess) {
                         ctx.channel().read()
                         success = true
-                        println("succcess")
                     }
                     else {
-                        ctx.channel().close()
-                        println("connect false")
+                        closeAndFlush()
                     }
                 }
             })
         }
         else {
-            if (!this::outboundChannel.isInitialized) return
-            if (!success) {
-                ctx.channel().disconnect()
-            }
+            if (!success) { closeAndFlush() }
             outboundChannel.writeAndFlush(msg).addListener(object: ChannelFutureListener {
                 override fun operationComplete(future: ChannelFuture) {
-                    println("${future.isSuccess}")
                     if (future.isSuccess) {
                         ctx.channel().read()
                     } else {
-                        future.channel().close()
+                        closeAndFlush()
                     }
                 }
             })
         }
     }
 
-    override fun channelInactive(ctx: ChannelHandlerContext?) {
-        if (!this::outboundChannel.isInitialized) return
-        closeAndFlush(outboundChannel)
-    }
-
-    override fun handlerRemoved(ctx: ChannelHandlerContext?) {
-        println("removed!!")
-    }
-
     override fun channelActive(ctx: ChannelHandlerContext) {
+        inboundChannel = ctx.channel()
         val b = Bootstrap()
         b.group(ctx.channel().eventLoop())
             .channel(ctx.channel().javaClass)
@@ -83,11 +74,10 @@ class MinecraftFrontendHandler(
         f.addListener(object: ChannelFutureListener {
             override fun operationComplete(future: ChannelFuture) {
                 if (future.isSuccess) {
-                    println("aaaaaaa")
                     ctx.channel().read()
                 }
                 else {
-                    println("aaaaaaaaaaaaaaaaaaaaaaaaaaa")
+                    closeAndFlush()
                 }
             }
         })
@@ -102,7 +92,6 @@ class MinecraftFrontendHandler(
                 println("corrupted frame: ${cause.message}")
             }
             is DecoderException -> {
-                // TODO make a disconnect handler
                 println("wired packet: ${cause.message}")
             }
             else -> {

@@ -1,5 +1,6 @@
 package click.recraft.handler
 
+import io.netty.buffer.ByteBuf
 import io.netty.channel.*
 
 
@@ -18,11 +19,11 @@ class MinecraftBackendHandler(private val inboundChannel: Channel) : ChannelInbo
     }
 
     override fun channelInactive(ctx: ChannelHandlerContext) {
-        MinecraftFrontendHandler.closeAndFlush(ctx.channel())
+        MinecraftFrontendHandler.closeAndFlush()
     }
 
     override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
         cause.printStackTrace()
-        MinecraftFrontendHandler.closeAndFlush(ctx.channel())
+        MinecraftFrontendHandler.closeAndFlush()
     }
 }
