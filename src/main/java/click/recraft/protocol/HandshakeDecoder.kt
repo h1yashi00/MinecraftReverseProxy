@@ -3,6 +3,7 @@ package click.recraft.protocol
 import click.recraft.handler.MinecraftFrontendHandler
 import click.recraft.objective.UserName
 import click.recraft.server.DefinedPacket
+import click.recraft.server.MinecraftProxy
 import click.recraft.server.URLRequest
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelFuture
@@ -10,7 +11,6 @@ import io.netty.channel.ChannelFutureListener
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.ByteToMessageDecoder
 import io.netty.util.CharsetUtil
-import java.lang.StringBuilder
 
 class HandshakeDecoder: ByteToMessageDecoder() {
     private val handshakePacketID = 0x00
@@ -58,16 +58,18 @@ class HandshakeDecoder: ByteToMessageDecoder() {
 
         val checkLegacyCopy = comeIn.copy()
         if (checkLegacyPing(checkLegacyCopy)) {
-            forceDisconnect(ctx, comeIn, "legacy ping is not support on this server")
+            forceDisconnect(ctx, comeIn, "legacy ping is not support on this server", null)
             return
         }
         checkLegacyCopy.release()
 
-       comeIn.copy().forEachByte {
-           print(String.format("0x%x ", it))
+        val logStringBuilder = StringBuffer().append()
+       val logPacketCopy = comeIn.copy()
+       logPacketCopy.forEachByte {
+           logStringBuilder.append((String.format("0x%x ", it)))
            true
        }
-        println()
+        logPacketCopy.release()
 
         val strBuilder = StringBuilder()
         val length = DefinedPacket.readVarInt(comeIn)
@@ -80,7 +82,7 @@ class HandshakeDecoder: ByteToMessageDecoder() {
         comeIn.skipBytes(length)
 
         if (packetID != handshakePacketID) {
-            forceDisconnect(ctx, comeIn, "invalid packet")
+            forceDisconnect(ctx, comeIn, "invalid packet", logStringBuilder)
             return
         }
 
@@ -94,13 +96,13 @@ class HandshakeDecoder: ByteToMessageDecoder() {
         slice.skipBytes(strLen)
         // forge add mods packet in server address field
         if (!(serverAdd == serverAddress || isForgeServerPacket(serverAdd))) {
-            forceDisconnect(ctx, comeIn, "直接IPアドレスを入力するのではなく､ドメイン名を入力してください")
+            forceDisconnect(ctx, comeIn, "直接IPアドレスを入力するのではなく､ドメイン名を入力してください", logStringBuilder)
             return
         }
         val port = DefinedPacket.readVarShort(slice)
         strBuilder.append("port: $port ")
         if (port != serverPort) {
-            forceDisconnect(ctx, comeIn, "指定したポートが正しくありません")
+            forceDisconnect(ctx, comeIn, "指定したポートが正しくありません", logStringBuilder)
             return
         }
         val nextState = DefinedPacket.readVarInt(slice) // expect 0x01 or 0x02
@@ -115,30 +117,34 @@ class HandshakeDecoder: ByteToMessageDecoder() {
             val len = slice.readByte().toInt()
             val loginSlice = comeIn.slice(comeIn.readerIndex(), len)
             if (loginSlice.readByte() != 0x00.toByte()) {
-                forceDisconnect(ctx, comeIn, "invalid login packet")
+                forceDisconnect(ctx, comeIn, "invalid login packet", logStringBuilder)
                 return
             }
             val nameLen = loginSlice.readByte().toInt()
             val playerName = loginSlice.readCharSequence(nameLen, CharsetUtil.UTF_8).toString()
 
             if (!URLRequest.checkPlayer(UserName(playerName))) {
-                forceDisconnect(ctx, comeIn, "Migration capeを着用してからサーバに接続してください")
+                forceDisconnect(ctx, comeIn, "Migration capeを着用してからサーバに接続してください", logStringBuilder)
                 return
             }
             out.add(ValidLoginPacket(playerName, savedPacket, strBuilder.toString()))
             comeIn.clear()
         }
         else {
-            forceDisconnect(ctx, comeIn, "正しいパケットはありません")
+            forceDisconnect(ctx, comeIn, "正しいパケットではありません", logStringBuilder)
         }
         return
     }
 
-    private fun forceDisconnect(ctx: ChannelHandlerContext, comeIn: ByteBuf, errorMsg: String) {
+    private fun forceDisconnect(ctx: ChannelHandlerContext, comeIn: ByteBuf, errorMsg: String, logPacket: StringBuffer?) {
         ctx.channel().writeAndFlush("§c$errorMsg").addListener(object: ChannelFutureListener{
             override fun operationComplete(future: ChannelFuture) {
                 MinecraftFrontendHandler.closeAndFlush()
                 comeIn.clear()
+                if (logPacket == null) {
+                    return
+                }
+                MinecraftProxy.logger.severe("[${ctx.channel().remoteAddress()}] $errorMsg$logPacket")
             }
         })
     }

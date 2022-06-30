@@ -1,6 +1,7 @@
 package click.recraft.handler
 
 import click.recraft.protocol.ValidLoginPacket
+import click.recraft.server.MinecraftProxy
 import io.netty.bootstrap.Bootstrap
 import io.netty.buffer.Unpooled
 import io.netty.channel.*
@@ -32,13 +33,10 @@ class MinecraftFrontendHandler(
     override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
         if (msg is ValidLoginPacket) {
             val packet = msg as ValidLoginPacket
-//            packet.buf.copy().forEachByte {
-//                print(String.format("0x%x ", it))
-//                true
-//            }
             outboundChannel.writeAndFlush(packet.buf).addListener(object: ChannelFutureListener {
                 override fun operationComplete(future: ChannelFuture) {
                     if (future.isSuccess) {
+                        MinecraftProxy.logger.info("[${packet.name}|${ctx.channel().remoteAddress()}] <-> MinecraftFrontendHandler <-> MinecraftServer")
                         ctx.channel().read()
                         success = true
                     }
@@ -93,6 +91,9 @@ class MinecraftFrontendHandler(
             }
             is DecoderException -> {
                 println("wired packet: ${cause.message}")
+            }
+            is RuntimeException -> {
+                MinecraftProxy.logger.warning("[${ctx.channel().remoteAddress()}] read time out")
             }
             else -> {
                 cause.printStackTrace()
