@@ -13,19 +13,17 @@ class MinecraftFrontendHandler(
     private val remoteHost: String,
     private val remotePort: Int
     ): ChannelInboundHandlerAdapter() {
-    companion object {
-        private lateinit var outboundChannel: Channel
-        private lateinit var inboundChannel : Channel
-        fun closeAndFlush() {
-            if (this::inboundChannel.isInitialized) {
-                if (inboundChannel.isActive) {
-                    inboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE)
-                }
+    private lateinit var outboundChannel: Channel
+    private lateinit var inboundChannel : Channel
+    fun closeAndFlush() {
+        if (this::inboundChannel.isInitialized) {
+            if (inboundChannel.isActive) {
+                inboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE)
             }
-            if (this::outboundChannel.isInitialized) {
-                if (inboundChannel.isActive) {
-                    outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE)
-                }
+        }
+        if (this::outboundChannel.isInitialized) {
+            if (inboundChannel.isActive) {
+                outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE)
             }
         }
     }
@@ -65,7 +63,7 @@ class MinecraftFrontendHandler(
         val b = Bootstrap()
         b.group(ctx.channel().eventLoop())
             .channel(ctx.channel().javaClass)
-            .handler(MinecraftBackendHandler(ctx.channel()))
+            .handler(MinecraftBackendHandler(ctx.channel(), this))
             .option(ChannelOption.AUTO_READ, false)
         val f = b.connect(remoteHost, remotePort)
         outboundChannel = f.channel()
@@ -90,13 +88,14 @@ class MinecraftFrontendHandler(
                 println("corrupted frame: ${cause.message}")
             }
             is DecoderException -> {
-                println("wired packet: ${cause.message}")
+                MinecraftProxy.logger.warning("1[${ctx.channel().remoteAddress()}] decoder exception ${cause.message}")
+                MinecraftProxy.logger.warning("2[${ctx.channel().remoteAddress()}] decoder exception ${cause.stackTrace}")
             }
             is RuntimeException -> {
                 MinecraftProxy.logger.warning("[${ctx.channel().remoteAddress()}] read time out")
             }
             else -> {
-                cause.printStackTrace()
+                super.exceptionCaught(ctx, cause)
             }
         }
     }

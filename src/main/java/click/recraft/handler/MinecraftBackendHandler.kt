@@ -3,7 +3,7 @@ package click.recraft.handler
 import io.netty.channel.*
 
 
-class MinecraftBackendHandler(private val inboundChannel: Channel) : ChannelInboundHandlerAdapter() {
+class MinecraftBackendHandler(private val inboundChannel: Channel, private val minecraftFrontendHandler: MinecraftFrontendHandler, ) : ChannelInboundHandlerAdapter() {
     override fun channelActive(ctx: ChannelHandlerContext) {
         ctx.channel().read()
     }
@@ -18,11 +18,11 @@ class MinecraftBackendHandler(private val inboundChannel: Channel) : ChannelInbo
     }
 
     override fun channelInactive(ctx: ChannelHandlerContext) {
-        MinecraftFrontendHandler.closeAndFlush()
+        minecraftFrontendHandler.closeAndFlush()
     }
 
     override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
         cause.printStackTrace()
-        MinecraftFrontendHandler.closeAndFlush()
+        minecraftFrontendHandler.closeAndFlush()
     }
 }

@@ -1,16 +1,18 @@
 package click.recraft.protocol
 
-import click.recraft.handler.MinecraftFrontendHandler
+import click.recraft.CacheData
 import click.recraft.objective.UserName
 import click.recraft.server.DefinedPacket
 import click.recraft.server.MinecraftProxy
 import click.recraft.server.URLRequest
 import io.netty.buffer.ByteBuf
+import io.netty.buffer.ByteBufAllocator
 import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelFutureListener
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.ByteToMessageDecoder
 import io.netty.util.CharsetUtil
+import java.lang.IndexOutOfBoundsException
 
 class HandshakeDecoder: ByteToMessageDecoder() {
     private val handshakePacketID = 0x00
@@ -51,6 +53,7 @@ class HandshakeDecoder: ByteToMessageDecoder() {
     }
     private val responseStatus    = 0x01
     private val responseLogin     = 0x02
+
     override fun decode(ctx: ChannelHandlerContext, comeIn: ByteBuf, out: MutableList<Any>) {
         // 最初に送られてくるパケットだけ検査して,このデコーダーのを削除する
         ctx.pipeline().remove("handshake_decoder")
@@ -58,7 +61,7 @@ class HandshakeDecoder: ByteToMessageDecoder() {
 
         val checkLegacyCopy = comeIn.copy()
         if (checkLegacyPing(checkLegacyCopy)) {
-            forceDisconnect(ctx, comeIn, "legacy ping is not support on this server", null)
+            forceDisconnect(ctx, comeIn, "legacy ping is not support on this server", "Minecraftバージョン1.8以上を使用してください",null)
             return
         }
         checkLegacyCopy.release()
@@ -66,7 +69,7 @@ class HandshakeDecoder: ByteToMessageDecoder() {
         val logStringBuilder = StringBuffer().append()
        val logPacketCopy = comeIn.copy()
        logPacketCopy.forEachByte {
-           logStringBuilder.append((String.format("0x%x ", it)))
+           logStringBuilder.append((String.format("%x ", it)))
            true
        }
         logPacketCopy.release()
@@ -78,11 +81,17 @@ class HandshakeDecoder: ByteToMessageDecoder() {
         val packetID = DefinedPacket.readVarInt(comeIn)
         strBuilder.append("packetID: $packetID ")
 
+
+        val remoteAddress = ctx.channel().remoteAddress().toString().split(":")[0]
+
+        if (comeIn.readableBytes() +1 == length) {
+            forceDisconnect(ctx, comeIn, "1 bytes missing in capture file", "一定時間待機するか､LunarClientを使用してください",logStringBuilder)
+        }
         val slice = comeIn.slice(comeIn.readerIndex(), length)
         comeIn.skipBytes(length)
 
         if (packetID != handshakePacketID) {
-            forceDisconnect(ctx, comeIn, "invalid packet", logStringBuilder)
+            forceDisconnect(ctx, comeIn, "invalid packet", "このエラーが出続けるなら管理人に連絡してください $packetID", logStringBuilder)
             return
         }
 
@@ -96,13 +105,13 @@ class HandshakeDecoder: ByteToMessageDecoder() {
         slice.skipBytes(strLen)
         // forge add mods packet in server address field
         if (!(serverAdd == serverAddress || isForgeServerPacket(serverAdd))) {
-            forceDisconnect(ctx, comeIn, "直接IPアドレスを入力するのではなく､ドメイン名を入力してください", logStringBuilder)
+            forceDisconnect(ctx, comeIn, "サーバのドメインと一致しません", "直接IPアドレスを入力するのではなく､ドメイン名を入力してください", logStringBuilder)
             return
         }
         val port = DefinedPacket.readVarShort(slice)
         strBuilder.append("port: $port ")
         if (port != serverPort) {
-            forceDisconnect(ctx, comeIn, "指定したポートが正しくありません", logStringBuilder)
+            forceDisconnect(ctx, comeIn, "指定したポートが${serverPort}と一致しません", "{$serverAddress}で接続もしくは${serverAddress}:${serverPort}で接続", logStringBuilder)
             return
         }
         val nextState = DefinedPacket.readVarInt(slice) // expect 0x01 or 0x02
@@ -117,34 +126,35 @@ class HandshakeDecoder: ByteToMessageDecoder() {
             val len = slice.readByte().toInt()
             val loginSlice = comeIn.slice(comeIn.readerIndex(), len)
             if (loginSlice.readByte() != 0x00.toByte()) {
-                forceDisconnect(ctx, comeIn, "invalid login packet", logStringBuilder)
+                forceDisconnect(ctx, comeIn, "invalid login packet", "このエラーが出続けるようなら管理人に連絡してください",logStringBuilder)
                 return
             }
             val nameLen = loginSlice.readByte().toInt()
             val playerName = loginSlice.readCharSequence(nameLen, CharsetUtil.UTF_8).toString()
 
             if (!URLRequest.checkPlayer(UserName(playerName))) {
-                forceDisconnect(ctx, comeIn, "Migration capeを着用してからサーバに接続してください", logStringBuilder)
+                forceDisconnect(ctx, comeIn, "Migrationの認証が確認できませんでした｡", "minecraft.netに接続して､スキン変更からChange Your Capeより､Migratorを選択してサーバへ再接続してください\n次回のログイン時には､マントの着用の必要はありません｡", logStringBuilder)
                 return
             }
+            CacheData.setIpPlayerName(remoteAddress, playerName)
             out.add(ValidLoginPacket(playerName, savedPacket, strBuilder.toString()))
             comeIn.clear()
         }
         else {
-            forceDisconnect(ctx, comeIn, "正しいパケットではありません", logStringBuilder)
+            forceDisconnect(ctx, comeIn, "正しいパケットではありません", "マインクラフトのクライアントを利用して接続してください", logStringBuilder)
         }
         return
     }
 
-    private fun forceDisconnect(ctx: ChannelHandlerContext, comeIn: ByteBuf, errorMsg: String, logPacket: StringBuffer?) {
-        ctx.channel().writeAndFlush("§c$errorMsg").addListener(object: ChannelFutureListener{
+    private fun forceDisconnect(ctx: ChannelHandlerContext, comeIn: ByteBuf, reason: String, solve: String, logPacket: StringBuffer?) {
+        ctx.channel().writeAndFlush("接続に失敗しました｡\n\n§c理由: $reason\n\n§b解決策: $solve").addListener(object: ChannelFutureListener{
             override fun operationComplete(future: ChannelFuture) {
-                MinecraftFrontendHandler.closeAndFlush()
+                future.channel().close()
                 comeIn.clear()
                 if (logPacket == null) {
                     return
                 }
-                MinecraftProxy.logger.severe("[${ctx.channel().remoteAddress()}] $errorMsg$logPacket")
+                MinecraftProxy.logger.severe("[${ctx.channel().remoteAddress()}] $reason $logPacket")
             }
         })
     }

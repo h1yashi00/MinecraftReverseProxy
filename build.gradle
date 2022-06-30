@@ -19,6 +19,8 @@ dependencies {
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
     implementation("jline:jline:2.8")
+    // 1. Use Guava in your implementation only:
+    implementation("com.google.guava:guava:31.1-jre")
 }
 
 configurations {

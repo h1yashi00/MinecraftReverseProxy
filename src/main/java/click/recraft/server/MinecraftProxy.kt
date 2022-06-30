@@ -36,7 +36,7 @@ class MinecraftProxy {
         logger.info("Starting Minecraft Reverse Proxy Server...")
         logger.info("${LocalDate.now()}: remoteHost-$remoteHost: remotePort-$remotePort")
         logger.info("Connection time out $timeoutSec sec")
-        val bossGroup   = NioEventLoopGroup(1)
+        val bossGroup   = NioEventLoopGroup()
         val workerGroup = NioEventLoopGroup()
         val b = ServerBootstrap()
         b.group(bossGroup, workerGroup)
