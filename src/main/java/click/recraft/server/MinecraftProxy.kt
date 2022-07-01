@@ -22,6 +22,10 @@ class MinecraftProxy {
     private val remoteHost    = "recraft.click"
     private val remotePort    = 25565
     private val timeoutSec    = 3
+    private val throttleTime  = 1000    // ms
+    private val throttleLimit = 3
+
+    val throttle = ProxyThrottle(throttleTime = throttleTime, throttleLimit = throttleLimit)
     companion object {
         lateinit var logger: Logger
     }
@@ -36,15 +40,14 @@ class MinecraftProxy {
         logger.info("Starting Minecraft Reverse Proxy Server...")
         logger.info("${LocalDate.now()}: remoteHost-$remoteHost: remotePort-$remotePort")
         logger.info("Connection time out $timeoutSec sec")
+        logger.info("throttle: $throttleTime ms $throttleLimit limit")
         val bossGroup   = NioEventLoopGroup()
         val workerGroup = NioEventLoopGroup()
         val b = ServerBootstrap()
 
-        val proxyThrottle = ProxyThrottle()
-
         b.group(bossGroup, workerGroup)
             .channel(NioServerSocketChannel::class.java)
-            .childHandler(MinecraftProxyInitializer(remoteHost, remotePort, timeoutSec))
+            .childHandler(MinecraftProxyInitializer(this, remoteHost, remotePort, timeoutSec))
             .childOption(ChannelOption.AUTO_READ, false)
         logger.info("binding/ 127.0.0.1:$port")
 

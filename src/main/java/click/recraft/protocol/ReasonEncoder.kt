@@ -1,5 +1,6 @@
-package click.recraft.server
+package click.recraft.protocol
 
+import click.recraft.server.DefinedPacket
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.ByteBufAllocator
 import io.netty.channel.ChannelHandlerContext

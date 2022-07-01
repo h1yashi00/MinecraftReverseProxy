@@ -72,6 +72,7 @@ class MinecraftFrontendHandler(
                     ctx.channel().read()
                 }
                 else {
+                    MinecraftProxy.logger.severe("Bungee/Minecraft Serverが起動していません")
                     closeBoth()
                 }
             }
