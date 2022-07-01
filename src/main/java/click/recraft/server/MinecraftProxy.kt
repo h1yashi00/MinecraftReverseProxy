@@ -1,5 +1,6 @@
 package click.recraft.server
 
+import click.recraft.check.ProxyThrottle
 import click.recraft.logger.LoggingOutputStream
 import click.recraft.logger.ProxyLogger
 import io.netty.bootstrap.ServerBootstrap
@@ -29,7 +30,6 @@ class MinecraftProxy {
     fun start() {
         val consoleReader = ConsoleReader()
         consoleReader.expandEvents = false
-//            consoleReader.addCompleter(Consol) // nocompleter
         logger = ProxyLogger("MinecraftReverseProxy", "proxy.log", consoleReader)
 
         System.setOut(PrintStream(LoggingOutputStream(logger, Level.INFO), true))
@@ -39,6 +39,9 @@ class MinecraftProxy {
         val bossGroup   = NioEventLoopGroup()
         val workerGroup = NioEventLoopGroup()
         val b = ServerBootstrap()
+
+        val proxyThrottle = ProxyThrottle()
+
         b.group(bossGroup, workerGroup)
             .channel(NioServerSocketChannel::class.java)
             .childHandler(MinecraftProxyInitializer(remoteHost, remotePort, timeoutSec))

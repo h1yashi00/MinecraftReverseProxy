@@ -12,9 +12,11 @@ class MinecraftProxyInitializer(
     private val timeoutSec: Int
     ) : ChannelInitializer<SocketChannel>()  {
     override fun initChannel(ch: SocketChannel) {
-        ch.pipeline().addLast("readTimeoutHandler", ReadTimeoutHandler(timeoutSec))
-        ch.pipeline().addLast("handshake_decoder", HandshakeDecoder())
-        ch.pipeline().addLast("reasonMessage_Encoder", ReasonEncoder())
-        ch.pipeline().addLast(MinecraftFrontendHandler(remoteHost, remotePort))
+        println("${ch.remoteAddress()}")
+        val frontendHandler = MinecraftFrontendHandler(remoteHost, remotePort)
+        ch.pipeline().addLast(frontendHandler)
+        ch.pipeline().addFirst("reasonMessage_Encoder", ReasonEncoder())
+        ch.pipeline().addFirst("handshake_decoder", HandshakeDecoder(frontendHandler))
+        ch.pipeline().addFirst("readTimeoutHandler", ReadTimeoutHandler(timeoutSec))
     }
 }

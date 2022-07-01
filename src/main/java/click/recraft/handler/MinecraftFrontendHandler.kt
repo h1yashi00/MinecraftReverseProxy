@@ -3,7 +3,6 @@ package click.recraft.handler
 import click.recraft.protocol.ValidLoginPacket
 import click.recraft.server.MinecraftProxy
 import io.netty.bootstrap.Bootstrap
-import io.netty.buffer.Unpooled
 import io.netty.channel.*
 import io.netty.handler.codec.CorruptedFrameException
 import io.netty.handler.codec.DecoderException
@@ -13,21 +12,17 @@ class MinecraftFrontendHandler(
     private val remoteHost: String,
     private val remotePort: Int
     ): ChannelInboundHandlerAdapter() {
-    private lateinit var outboundChannel: Channel
-    private lateinit var inboundChannel : Channel
-    fun closeAndFlush() {
-        if (this::inboundChannel.isInitialized) {
-            if (inboundChannel.isActive) {
-                inboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE)
-            }
+    private var success = false
+    lateinit var outboundChannel: Channel
+    lateinit var inboundChannel: Channel
+    fun closeBoth() {
+        if (inboundChannel.isActive) {
+            inboundChannel.close()
         }
-        if (this::outboundChannel.isInitialized) {
-            if (inboundChannel.isActive) {
-                outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE)
-            }
+        if (outboundChannel.isActive) {
+            outboundChannel.close()
         }
     }
-    private var success = false
     override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
         if (msg is ValidLoginPacket) {
             val packet = msg as ValidLoginPacket
@@ -39,23 +34,27 @@ class MinecraftFrontendHandler(
                         success = true
                     }
                     else {
-                        closeAndFlush()
+                        closeBoth()
                     }
                 }
             })
         }
         else {
-            if (!success) { closeAndFlush() }
+            if (!success) { closeBoth() }
             outboundChannel.writeAndFlush(msg).addListener(object: ChannelFutureListener {
                 override fun operationComplete(future: ChannelFuture) {
                     if (future.isSuccess) {
                         ctx.channel().read()
                     } else {
-                        closeAndFlush()
+                        closeBoth()
                     }
                 }
             })
         }
+    }
+
+    override fun channelInactive(ctx: ChannelHandlerContext?) {
+        closeBoth()
     }
 
     override fun channelActive(ctx: ChannelHandlerContext) {
@@ -63,7 +62,7 @@ class MinecraftFrontendHandler(
         val b = Bootstrap()
         b.group(ctx.channel().eventLoop())
             .channel(ctx.channel().javaClass)
-            .handler(MinecraftBackendHandler(ctx.channel(), this))
+            .handler(MinecraftBackendHandler(this))
             .option(ChannelOption.AUTO_READ, false)
         val f = b.connect(remoteHost, remotePort)
         outboundChannel = f.channel()
@@ -73,7 +72,7 @@ class MinecraftFrontendHandler(
                     ctx.channel().read()
                 }
                 else {
-                    closeAndFlush()
+                    closeBoth()
                 }
             }
         })
@@ -95,7 +94,8 @@ class MinecraftFrontendHandler(
                 MinecraftProxy.logger.warning("[${ctx.channel().remoteAddress()}] read time out")
             }
             else -> {
-                super.exceptionCaught(ctx, cause)
+                cause.printStackTrace()
+                return
             }
         }
     }

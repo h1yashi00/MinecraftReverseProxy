@@ -1,20 +1,18 @@
 package click.recraft.protocol
 
-import click.recraft.CacheData
+import click.recraft.handler.MinecraftFrontendHandler
 import click.recraft.objective.UserName
 import click.recraft.server.DefinedPacket
 import click.recraft.server.MinecraftProxy
 import click.recraft.server.URLRequest
 import io.netty.buffer.ByteBuf
-import io.netty.buffer.ByteBufAllocator
 import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelFutureListener
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.ByteToMessageDecoder
 import io.netty.util.CharsetUtil
-import java.lang.IndexOutOfBoundsException
 
-class HandshakeDecoder: ByteToMessageDecoder() {
+class HandshakeDecoder(frontendHandler: MinecraftFrontendHandler) : ByteToMessageDecoder() {
     private val handshakePacketID = 0x00
     private val serverPort        = 25566
     private val serverAddress     = "recraft.click"
@@ -136,7 +134,6 @@ class HandshakeDecoder: ByteToMessageDecoder() {
                 forceDisconnect(ctx, comeIn, "Migrationの認証が確認できませんでした｡", "minecraft.netに接続して､スキン変更からChange Your Capeより､Migratorを選択してサーバへ再接続してください\n次回のログイン時には､マントの着用の必要はありません｡", logStringBuilder)
                 return
             }
-            CacheData.setIpPlayerName(remoteAddress, playerName)
             out.add(ValidLoginPacket(playerName, savedPacket, strBuilder.toString()))
             comeIn.clear()
         }
