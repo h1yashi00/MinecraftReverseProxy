@@ -17,10 +17,12 @@ dependencies {
     implementation 'org.json:json:20220320'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
-    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
     implementation("jline:jline:2.8")
     // 1. Use Guava in your implementation only:
     implementation("com.google.guava:guava:31.1-jre")
+    // https://mvnrepository.com/artifact/io.netty/netty-codec-haproxy
+    implementation 'io.netty:netty-codec-haproxy:4.1.78.Final'
 }
 
 configurations {
@@ -30,10 +32,11 @@ configurations {
 }
 
 jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
         attributes(
                 'Class-Path': configurations.compile.collect { it.getName() }.join(' '),
-                'Main-Class': 'recraft.click.client.Main'
+                'Main-Class': 'click.recraft.server.MinecraftProxyKt'
         )
     }
     from { configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) } }

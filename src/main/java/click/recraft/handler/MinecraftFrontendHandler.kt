@@ -1,12 +1,18 @@
 package click.recraft.handler
 
+import click.recraft.protocol.ProxyEncoder
+import click.recraft.protocol.ProxyMessage
 import click.recraft.protocol.ValidLoginPacket
 import click.recraft.server.MinecraftProxy
 import io.netty.bootstrap.Bootstrap
 import io.netty.channel.*
 import io.netty.handler.codec.CorruptedFrameException
 import io.netty.handler.codec.DecoderException
+import io.netty.handler.codec.haproxy.*
+
 import java.io.IOException
+import java.net.InetSocketAddress
+import java.net.SocketAddress
 
 class MinecraftFrontendHandler(
     private val remoteHost: String,
@@ -24,12 +30,28 @@ class MinecraftFrontendHandler(
         }
     }
     override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+        if (MinecraftProxy.proxy) {
+
+        }
         if (msg is ValidLoginPacket) {
             val packet = msg as ValidLoginPacket
+            if (MinecraftProxy.proxy) {
+                val proxyMessage = ProxyMessage(
+                    inboundChannel.remoteAddress(), // クライアントが接続してきたアドレスとポート
+                    inboundChannel.localAddress() // プロキシサーバがマイクラサーバに接続しているポート
+                )
+                outboundChannel.pipeline().addFirst("ProxyEncoder", ProxyEncoder())
+                outboundChannel.writeAndFlush(proxyMessage).addListener(object : ChannelFutureListener {
+                    override fun operationComplete(future: ChannelFuture) {
+                        outboundChannel.pipeline().remove("ProxyEncoder")
+                        println("${future.channel().isActive}")
+                    }
+                })
+            }
             outboundChannel.writeAndFlush(packet.buf).addListener(object: ChannelFutureListener {
                 override fun operationComplete(future: ChannelFuture) {
                     if (future.isSuccess) {
-                        MinecraftProxy.logger.info("[${packet.name}|${ctx.channel().remoteAddress()}] <-> MinecraftFrontendHandler <-> MinecraftServer")
+                        MinecraftProxy.logger.info("[${packet.name}|${ctx.channel().remoteAddress()}] <-> MinecraftFrontendHandler <-> MinecraftServer [${outboundChannel.remoteAddress()}]")
                         ctx.channel().read()
                         success = true
                     }
@@ -41,6 +63,7 @@ class MinecraftFrontendHandler(
         }
         else {
             if (!success) { closeBoth() }
+
             outboundChannel.writeAndFlush(msg).addListener(object: ChannelFutureListener {
                 override fun operationComplete(future: ChannelFuture) {
                     if (future.isSuccess) {
