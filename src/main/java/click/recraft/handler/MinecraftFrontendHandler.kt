@@ -8,17 +8,13 @@ import io.netty.bootstrap.Bootstrap
 import io.netty.channel.*
 import io.netty.handler.codec.CorruptedFrameException
 import io.netty.handler.codec.DecoderException
-import io.netty.handler.codec.haproxy.*
 
 import java.io.IOException
-import java.net.InetSocketAddress
-import java.net.SocketAddress
 
 class MinecraftFrontendHandler(
-    private val remoteHost: String,
-    private val remotePort: Int
+    private val proxy: MinecraftProxy,
     ): ChannelInboundHandlerAdapter() {
-    private var success = false
+    private var sendFirstPacket = false
     lateinit var outboundChannel: Channel
     lateinit var inboundChannel: Channel
     fun closeBoth() {
@@ -30,12 +26,9 @@ class MinecraftFrontendHandler(
         }
     }
     override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-        if (MinecraftProxy.proxy) {
-
-        }
         if (msg is ValidLoginPacket) {
             val packet = msg as ValidLoginPacket
-            if (MinecraftProxy.proxy) {
+            if (MinecraftProxy.useProxyProtocol) {
                 val proxyMessage = ProxyMessage(
                     inboundChannel.remoteAddress(), // クライアントが接続してきたアドレスとポート
                     inboundChannel.localAddress() // プロキシサーバがマイクラサーバに接続しているポート
@@ -44,7 +37,6 @@ class MinecraftFrontendHandler(
                 outboundChannel.writeAndFlush(proxyMessage).addListener(object : ChannelFutureListener {
                     override fun operationComplete(future: ChannelFuture) {
                         outboundChannel.pipeline().remove("ProxyEncoder")
-                        println("${future.channel().isActive}")
                     }
                 })
             }
@@ -53,7 +45,7 @@ class MinecraftFrontendHandler(
                     if (future.isSuccess) {
                         MinecraftProxy.logger.info("[${packet.name}|${ctx.channel().remoteAddress()}] <-> MinecraftFrontendHandler <-> MinecraftServer [${outboundChannel.remoteAddress()}]")
                         ctx.channel().read()
-                        success = true
+                        sendFirstPacket = true
                     }
                     else {
                         closeBoth()
@@ -62,7 +54,7 @@ class MinecraftFrontendHandler(
             })
         }
         else {
-            if (!success) { closeBoth() }
+            if (!sendFirstPacket) { closeBoth() }
 
             outboundChannel.writeAndFlush(msg).addListener(object: ChannelFutureListener {
                 override fun operationComplete(future: ChannelFuture) {
@@ -87,7 +79,7 @@ class MinecraftFrontendHandler(
             .channel(ctx.channel().javaClass)
             .handler(MinecraftBackendHandler(this))
             .option(ChannelOption.AUTO_READ, false)
-        val f = b.connect(remoteHost, remotePort)
+        val f = b.connect(proxy.minecraftHostIp, proxy.minecraftHostPort)
         outboundChannel = f.channel()
         f.addListener(object: ChannelFutureListener {
             override fun operationComplete(future: ChannelFuture) {

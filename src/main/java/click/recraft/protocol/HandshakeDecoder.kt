@@ -1,6 +1,5 @@
 package click.recraft.protocol
 
-import click.recraft.handler.MinecraftFrontendHandler
 import click.recraft.objective.UserName
 import click.recraft.server.DefinedPacket
 import click.recraft.server.MinecraftProxy
@@ -12,10 +11,9 @@ import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.ByteToMessageDecoder
 import io.netty.util.CharsetUtil
 
-class HandshakeDecoder(frontendHandler: MinecraftFrontendHandler) : ByteToMessageDecoder() {
+class HandshakeDecoder(private val proxy: MinecraftProxy) : ByteToMessageDecoder() {
     private val handshakePacketID = 0x00
-    private val serverPort        = 25566
-    private val serverAddress     = "recraft.click"
+
     // somewhat client send this packet to server when client disconnect to to the server
     private fun checkLegacyPing(buf: ByteBuf): Boolean {
         if (buf.readByte() != 0xfe.toByte()) {
@@ -36,7 +34,7 @@ class HandshakeDecoder(frontendHandler: MinecraftFrontendHandler) : ByteToMessag
     private fun isForgeServerPacket(nameFieldPacket: CharSequence): Boolean {
         val bytes = arrayListOf<Byte>()
         val bytesPacket = arrayListOf<Byte>()
-        serverAddress.forEach {
+        proxy.checkDomain.forEach {
             bytes.add(it.toByte())
         }
         bytes.add(0x00.toByte())
@@ -102,14 +100,14 @@ class HandshakeDecoder(frontendHandler: MinecraftFrontendHandler) : ByteToMessag
 
         slice.skipBytes(strLen)
         // forge add mods packet in server address field
-        if (!(serverAdd == serverAddress || isForgeServerPacket(serverAdd))) {
+        if (!(serverAdd == proxy.checkDomain || isForgeServerPacket(serverAdd))) {
             forceDisconnect(ctx, comeIn, "サーバのドメインと一致しません", "直接IPアドレスを入力するのではなく､ドメイン名を入力してください", logStringBuilder)
             return
         }
         val port = DefinedPacket.readVarShort(slice)
         strBuilder.append("port: $port ")
-        if (port != serverPort) {
-            forceDisconnect(ctx, comeIn, "指定したポートが${serverPort}と一致しません", "{$serverAddress}で接続もしくは${serverAddress}:${serverPort}で接続", logStringBuilder)
+        if (port != proxy.bindPort) {
+            forceDisconnect(ctx, comeIn, "指定したポートが${proxy.bindPort}と一致しません", "{${proxy.checkDomain}}で接続もしくは${proxy.checkDomain}:${proxy.bindPort}で接続", logStringBuilder)
             return
         }
         val nextState = DefinedPacket.readVarInt(slice) // expect 0x01 or 0x02

@@ -9,19 +9,16 @@ import io.netty.handler.timeout.ReadTimeoutHandler
 
 class MinecraftProxyInitializer(
     private val proxy: MinecraftProxy,
-    private val remoteHost: String,
-    private val remotePort: Int,
-    private val timeoutSec: Int
 ) : ChannelInitializer<SocketChannel>()  {
     override fun initChannel(ch: SocketChannel) {
         if (proxy.throttle.incThrottle(ch.remoteAddress())) {
             MinecraftProxy.logger.warning("${ch.remoteAddress().address}")
             ch.close() // channel
         }
-        val frontendHandler = MinecraftFrontendHandler(remoteHost, remotePort)
+        val frontendHandler = MinecraftFrontendHandler(proxy)
         ch.pipeline().addLast(frontendHandler)
         ch.pipeline().addFirst("reasonMessage_Encoder", ReasonEncoder())
-        ch.pipeline().addFirst("handshake_decoder", HandshakeDecoder(frontendHandler))
-        ch.pipeline().addFirst("readTimeoutHandler", ReadTimeoutHandler(timeoutSec))
+        ch.pipeline().addFirst("handshake_decoder", HandshakeDecoder(proxy))
+        ch.pipeline().addFirst("readTimeoutHandler", ReadTimeoutHandler(proxy.timeoutSec))
     }
 }

@@ -1,19 +1,15 @@
 package click.recraft.server
 
 import click.recraft.check.ProxyThrottle
+import click.recraft.config.YamlConfig
 import click.recraft.logger.LoggingOutputStream
 import click.recraft.logger.ProxyLogger
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.ChannelOption
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioServerSocketChannel
-import io.netty.handler.codec.haproxy.HAProxyCommand
-import io.netty.handler.codec.haproxy.HAProxyMessage
-import io.netty.handler.codec.haproxy.HAProxyProtocolVersion
-import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol
 import jline.console.ConsoleReader
 import java.io.PrintStream
-import java.net.InetSocketAddress
 import java.time.LocalDate
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -22,26 +18,37 @@ fun main() {
     MinecraftProxy().start()
 }
 
-// TODO configから変更できるように変更｡expect domain Name を追加する｡
-// TODO リバースプロキシをバンジーコードに伝えるための方法HaProxyEncoderを利用する｡
-// TODO ping値をサーバに伝える方法を考える
 // TODO マイクラの認証機能をデータベースと連携してできるように設定する｡
+// TODO ping値をサーバに伝える方法を考える
+
 // TODO dockerを利用して､リバースプロキシを設定できるようにする?
 // TODO コネクションを確立したくないIPを本体のLinuxサーバに設定する(べき?)
 // TODO Linuxのチューニング?DDOS対策? 開くポートは?
 
+// client <- Minecraft(Reverse)Proxy -> Bungee/Spigot/NormalMinecraftServer
+// MinecraftProxyはデフォルトで25565(MinecraftPortを使用します)
+// Spigotサーバに割り当てるポートは25565以外の使用をおすすめします(WildPortScanやそれ以外の対策)
 class MinecraftProxy {
-    private val port          = 25566
-    private val remoteHost    = "127.0.0.1"
-    private val remotePort    = 25577
-    private val timeoutSec    = 3
-    private val throttleTime  = 1000    // ms
-    private val throttleLimit = 3
+    private val config = YamlConfig().apply{load()}
+    val bindPort           = config.get("bind_port"    , 25565)
+    val minecraftHostIp    = config.get("remote_host"  , "127.0.0.1")
+    val minecraftHostPort  = config.get("remote_port"  , 25566)
+    val timeoutSec         = config.get("timeout_sec"  , 3)
+    val checkDomain        = config.get("check_domain" ,"recraft.click")
+
+    init {
+        useProxyProtocol = config.get("use_proxy_protocol", true)
+    }
+
+    private val throttleTime  = config.get("throttle_time", 1000)    // ms
+    private val throttleLimit = config.get("throttle_limit",3)
+
 
     val throttle = ProxyThrottle(throttleTime = throttleTime, throttleLimit = throttleLimit)
+
     companion object {
         lateinit var logger: Logger
-        val proxy = true
+        var useProxyProtocol: Boolean = true
     }
 
 
@@ -52,7 +59,7 @@ class MinecraftProxy {
 
         System.setOut(PrintStream(LoggingOutputStream(logger, Level.INFO), true))
         logger.info("Starting Minecraft Reverse Proxy Server...")
-        logger.info("${LocalDate.now()}: remoteHost-$remoteHost: remotePort-$remotePort")
+        logger.info("${LocalDate.now()}: remoteHost-$minecraftHostIp: remotePort-$minecraftHostPort")
         logger.info("Connection time out $timeoutSec sec")
         logger.info("throttle: $throttleTime ms $throttleLimit limit")
 
@@ -62,11 +69,11 @@ class MinecraftProxy {
 
         b.group(bossGroup, workerGroup)
             .channel(NioServerSocketChannel::class.java)
-            .childHandler(MinecraftProxyInitializer(this, remoteHost, remotePort, timeoutSec))
+            .childHandler(MinecraftProxyInitializer(this))
             .childOption(ChannelOption.AUTO_READ, false)
-        logger.info("binding/ 127.0.0.1:$port")
+        logger.info("binding/ 127.0.0.1:$bindPort")
 
-        val f = b.bind(port).sync()
+        val f = b.bind(bindPort).sync()
         f.channel().closeFuture().sync()
     }
 }
