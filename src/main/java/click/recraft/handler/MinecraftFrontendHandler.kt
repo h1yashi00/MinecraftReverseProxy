@@ -43,7 +43,14 @@ class MinecraftFrontendHandler(
             outboundChannel.writeAndFlush(packet.buf).addListener(object: ChannelFutureListener {
                 override fun operationComplete(future: ChannelFuture) {
                     if (future.isSuccess) {
-                        MinecraftProxy.logger.info("[${packet.name}|${ctx.channel().remoteAddress()}] <-> MinecraftFrontendHandler <-> MinecraftServer [${outboundChannel.remoteAddress()}]")
+
+                        if (packet.name == "") {
+                            proxy.throttle.decThrottle(inboundChannel.remoteAddress()) // ping は throttleに含まれないようにする
+                            MinecraftProxy.logger.info("[${inboundChannel.remoteAddress()}] has pinged this server")
+                        }
+                        else {
+                            MinecraftProxy.logger.info("[${packet.name}|${ctx.channel().remoteAddress()}] <-> MinecraftFrontendHandler <-> MinecraftServer [${outboundChannel.remoteAddress()}]")
+                        }
                         ctx.channel().read()
                         sendFirstPacket = true
                     }

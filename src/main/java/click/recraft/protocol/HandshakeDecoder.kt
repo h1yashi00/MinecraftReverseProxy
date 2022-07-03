@@ -77,9 +77,6 @@ class HandshakeDecoder(private val proxy: MinecraftProxy) : ByteToMessageDecoder
         val packetID = DefinedPacket.readVarInt(comeIn)
         strBuilder.append("packetID: $packetID ")
 
-
-        val remoteAddress = ctx.channel().remoteAddress().toString().split(":")[0]
-
         if (comeIn.readableBytes() +1 == length) {
             forceDisconnect(ctx, comeIn, "1 bytes missing in capture file", "一定時間待機するか､LunarClientを使用してください",logStringBuilder)
         }
@@ -115,7 +112,8 @@ class HandshakeDecoder(private val proxy: MinecraftProxy) : ByteToMessageDecoder
         // ping
         if (nextState == responseStatus) {
             // TODO connect server
-//            ctx.write() // connect server
+            out.add(ValidLoginPacket("", savedPacket, strBuilder.toString()))
+            comeIn.clear()
         }
         // login start
         else if (nextState == responseLogin) {
