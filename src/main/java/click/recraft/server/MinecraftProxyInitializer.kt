@@ -12,8 +12,9 @@ class MinecraftProxyInitializer(
 ) : ChannelInitializer<SocketChannel>()  {
     override fun initChannel(ch: SocketChannel) {
         if (proxy.throttle.incThrottle(ch.remoteAddress())) {
-            MinecraftProxy.logger.warning("${ch.remoteAddress().address}")
+            MinecraftProxy.logger.warning("throttle was blocked: ${ch.remoteAddress().address}")
             ch.close() // channel
+            return
         }
         val frontendHandler = MinecraftFrontendHandler(proxy)
         ch.pipeline().addLast(frontendHandler)

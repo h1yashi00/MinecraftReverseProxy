@@ -20,11 +20,11 @@ class ProxyThrottle(
         .concurrencyLevel(Runtime.getRuntime().availableProcessors())
         .initialCapacity(100)
         .expireAfterWrite(throttleTime.toLong(), TimeUnit.MILLISECONDS)
-        .build(object: CacheLoader<InetAddress, AtomicInteger>() {
+        .build(object : CacheLoader<InetAddress, AtomicInteger>() {
             override fun load(key: InetAddress): AtomicInteger {
                 return AtomicInteger()
             }
-        })!!
+        })
 
 
     fun decThrottle(socketAddress: SocketAddress?) {

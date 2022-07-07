@@ -26,6 +26,7 @@ class MinecraftFrontendHandler(
         }
     }
     override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+        // pingパケットとバニラで接続してきた欠損したパケットと名前からUUIDを得られたパケットしか通さない
         if (msg is ValidLoginPacket) {
             val packet = msg as ValidLoginPacket
             if (MinecraftProxy.useProxyProtocol) {

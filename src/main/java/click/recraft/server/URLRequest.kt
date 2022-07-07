@@ -1,6 +1,8 @@
 package click.recraft.server
 
+import click.recraft.cache.PlayerUUIDCache
 import click.recraft.objective.UserName
+import click.recraft.sql.Database
 import io.netty.util.CharsetUtil
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -11,10 +13,13 @@ import java.util.*
 import javax.net.ssl.HttpsURLConnection
 
 object URLRequest {
+    private val playerUUIDCache = PlayerUUIDCache(expireTime = 1000 * 60 * 60) // 1 hours ((1sec * 60)min * 60)hour
     fun checkPlayer(user: UserName): Boolean {
-        val urlProfile = URL("https://api.mojang.com/users/profiles/minecraft/${user.name}")
-        val jsonProfile = requestURL(urlProfile) ?: return false
-        val uuid = jsonProfile.get("id").toString()
+        val uuid = playerUUIDCache.getUUID(user)
+        if (uuid == "null") return false // player was not found Mojang api URL
+        if (Database.getPlayer(uuid)) {
+            return true
+        }
         val urlSessionProfile = URL("https://sessionserver.mojang.com/session/minecraft/profile/$uuid")
         val jsonSessionProfile = requestURL(urlSessionProfile) ?: return false
         val properties = jsonSessionProfile.get("properties").toString().removePrefix("[").removeSuffix("]")
@@ -35,7 +40,7 @@ object URLRequest {
 
         return true
     }
-    private fun requestURL(url: URL): JSONObject? {
+    fun requestURL(url: URL): JSONObject? {
         val https = url.openConnection() as HttpsURLConnection
         https.requestMethod = "GET"
         https.connectTimeout = 1000

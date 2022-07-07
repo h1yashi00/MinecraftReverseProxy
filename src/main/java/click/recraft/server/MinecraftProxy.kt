@@ -4,6 +4,7 @@ import click.recraft.check.ProxyThrottle
 import click.recraft.config.YamlConfig
 import click.recraft.logger.LoggingOutputStream
 import click.recraft.logger.ProxyLogger
+import click.recraft.sql.Database
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.ChannelOption
 import io.netty.channel.nio.NioEventLoopGroup
@@ -15,6 +16,7 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 fun main() {
+    Database.connect()
     MinecraftProxy().start()
 }
 
@@ -28,13 +30,14 @@ fun main() {
 // client <- Minecraft(Reverse)Proxy -> Bungee/Spigot/NormalMinecraftServer
 // MinecraftProxyはデフォルトで25565(MinecraftPortを使用します)
 // Spigotサーバに割り当てるポートは25565以外の使用をおすすめします(WildPortScanやそれ以外の対策)
+
 class MinecraftProxy {
-    private val config = YamlConfig().apply{load()}
-    val bindPort           = config.get("bind_port"    , 25565)
-    val minecraftHostIp    = config.get("remote_host"  , "127.0.0.1")
-    val minecraftHostPort  = config.get("remote_port"  , 25566)
-    val timeoutSec         = config.get("timeout_sec"  , 3)
-    val checkDomain        = config.get("check_domain" ,"recraft.click")
+    private val config = YamlConfig().apply {load()}
+    val bindPort           = config.get("bind_port"          , 25565)
+    val minecraftHostIp    = config.get("minecraft_host_ip"  , "127.0.0.1")
+    val minecraftHostPort  = config.get("minecraft_host_port", 25570)
+    val timeoutSec         = config.get("timeout_sec"        , 3)
+    val checkDomain        = config.get("check_domain"       ,"recraft.click")
 
     init {
         useProxyProtocol = config.get("use_proxy_protocol", true)

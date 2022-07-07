@@ -78,7 +78,9 @@ class HandshakeDecoder(private val proxy: MinecraftProxy) : ByteToMessageDecoder
         strBuilder.append("packetID: $packetID ")
 
         if (comeIn.readableBytes() +1 == length) {
-            forceDisconnect(ctx, comeIn, "1 bytes missing in capture file", "一定時間待機するか､LunarClientを使用してください",logStringBuilder)
+            out.add(ValidLoginPacket("vanilla", savedPacket, strBuilder.toString()))
+            comeIn.clear()
+            return
         }
         val slice = comeIn.slice(comeIn.readerIndex(), length)
         comeIn.skipBytes(length)
