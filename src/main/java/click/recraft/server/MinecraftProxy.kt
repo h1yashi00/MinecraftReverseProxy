@@ -16,7 +16,10 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 fun main() {
-    Database.connect()
+    val database = false
+    if (database) {
+        Database.connect()
+    }
     MinecraftProxy().start()
 }
 
