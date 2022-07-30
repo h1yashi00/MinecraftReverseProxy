@@ -32,6 +32,7 @@ fun main() {
 // Spigotサーバに割り当てるポートは25565以外の使用をおすすめします(WildPortScanやそれ以外の対策)
 
 class MinecraftProxy {
+    val debug: Boolean = false
     private val config = YamlConfig().apply {load()}
     val bindPort           = config.get("bind_port"          , 25565)
     val minecraftHostIp    = config.get("minecraft_host_ip"  , "127.0.0.1")

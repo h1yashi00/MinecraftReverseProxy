@@ -1,9 +1,7 @@
 package click.recraft.protocol
 
-import click.recraft.objective.UserName
 import click.recraft.server.DefinedPacket
 import click.recraft.server.MinecraftProxy
-import click.recraft.server.URLRequest
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelFutureListener
@@ -100,7 +98,7 @@ class HandshakeDecoder(private val proxy: MinecraftProxy) : ByteToMessageDecoder
         slice.skipBytes(strLen)
         // forge add mods packet in server address field
         if (!(serverAdd == proxy.checkDomain || isForgeServerPacket(serverAdd))) {
-            forceDisconnect(ctx, comeIn, "サーバのドメインと一致しません", "直接IPアドレスを入力するのではなく､ドメイン名を入力してください", logStringBuilder)
+            forceDisconnect(ctx, comeIn, "サーバのドメインと一致しません", "直接IPアドレスを入力するのではなく､ドメイン名を入力してください", logStringBuilder, " 予期したアドレス: ${proxy.checkDomain} 入力されたアドレス:$serverAdd")
             return
         }
         val port = DefinedPacket.readVarShort(slice)
@@ -128,10 +126,6 @@ class HandshakeDecoder(private val proxy: MinecraftProxy) : ByteToMessageDecoder
             val nameLen = loginSlice.readByte().toInt()
             val playerName = loginSlice.readCharSequence(nameLen, CharsetUtil.UTF_8).toString()
 
-//            if (!URLRequest.checkPlayer(UserName(playerName))) {
-//                forceDisconnect(ctx, comeIn, "Migrationの認証が確認できませんでした｡", "minecraft.netに接続して､スキン変更からChange Your Capeより､Migratorを選択してサーバへ再接続してください\n次回のログイン時には､マントの着用の必要はありません｡", logStringBuilder)
-//                return
-//            }
             out.add(ValidLoginPacket(playerName, savedPacket, strBuilder.toString()))
             comeIn.clear()
         }
@@ -141,16 +135,25 @@ class HandshakeDecoder(private val proxy: MinecraftProxy) : ByteToMessageDecoder
         return
     }
 
-    private fun forceDisconnect(ctx: ChannelHandlerContext, comeIn: ByteBuf, reason: String, solve: String, logPacket: StringBuffer?) {
-        ctx.channel().writeAndFlush("接続に失敗しました｡\n\n§c理由: $reason\n\n§b解決策: $solve").addListener(object: ChannelFutureListener{
-            override fun operationComplete(future: ChannelFuture) {
-                future.channel().close()
-                comeIn.clear()
-                if (logPacket == null) {
-                    return
+    private fun forceDisconnect(ctx: ChannelHandlerContext, comeIn: ByteBuf, reason: String, solve: String, logPacket: StringBuffer?, logMessage: String = "") {
+        MinecraftProxy.logger.severe("[${ctx.channel().remoteAddress()}] $reason $logMessage $logPacket $logMessage")
+        val msg = "接続に失敗しました｡\n\n§c理由: $reason\n\n§b解決策: $solve"
+        if (proxy.debug) {
+            ctx.channel().writeAndFlush(msg).addListener(object: ChannelFutureListener{
+                override fun operationComplete(future: ChannelFuture) {
+                    future.channel().close()
+                    comeIn.clear()
+                    if (logPacket == null) {
+                        return
+                    }
                 }
-                MinecraftProxy.logger.severe("[${ctx.channel().remoteAddress()}] $reason $logPacket")
-            }
-        })
+            })
+        }
+        else {
+            proxy.throttle.incThrottle(ctx.channel().remoteAddress())
+            proxy.throttle.incThrottle(ctx.channel().remoteAddress())
+            proxy.throttle.incThrottle(ctx.channel().remoteAddress())
+            ctx.channel().close()
+        }
     }
 }
