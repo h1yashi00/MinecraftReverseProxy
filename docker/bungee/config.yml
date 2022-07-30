@@ -1,0 +1,52 @@
+enforce_secure_profile: false
+listeners:
+  - query_port: 25577
+    motd: '&1Another Bungee server'
+    tab_list: GLOBAL_PING
+    query_enabled: false
+    proxy_protocol: true
+    forced_hosts:
+      pvp.md-5.net: pvp
+    ping_passthrough: false
+    priorities:
+      - mainlobby
+    bind_local_address: true
+    host: 0.0.0.0:25577
+    max_players: 1
+    tab_size: 60
+    force_default_server: true
+remote_ping_cache: -1
+network_compression_threshold: 256
+permissions:
+  default:
+    - bungeecord.command.server
+    - bungeecord.command.list
+  admin:
+    - bungeecord.command.alert
+    - bungeecord.command.end
+    - bungeecord.command.ip
+    - bungeecord.command.reload
+log_pings: false
+connection_throttle_limit: 100
+server_connect_timeout: 5000
+timeout: 30000
+stats: 0bed8e67-23cb-4d84-ad91-893da06b8bcc
+player_limit: -1
+ip_forward: true
+groups:
+  md_5:
+    - admin
+remote_ping_timeout: 5000
+connection_throttle: 4000
+log_commands: false
+prevent_proxy_connections: false
+online_mode: true
+forge_support: false
+disabled_commands:
+  - disabledcommandhere
+servers:
+  # bungeeはaddressでアンダーバーを受け付けない
+  mainlobby:
+    motd: '&1Just another BungeeCord - Forced Host'
+    address: spigot:25565
+    restricted: false

@@ -35,7 +35,7 @@ class MinecraftProxy {
     private val config = YamlConfig().apply {load()}
     val bindPort           = config.get("bind_port"          , 25565)
     val minecraftHostIp    = config.get("minecraft_host_ip"  , "127.0.0.1")
-    val minecraftHostPort  = config.get("minecraft_host_port", 25570)
+    val minecraftHostPort  = config.get("minecraft_host_port", 25577)
     val timeoutSec         = config.get("timeout_sec"        , 3)
     val checkDomain        = config.get("check_domain"       ,"recraft.click")
 

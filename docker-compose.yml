@@ -1,0 +1,70 @@
+version: '3.7'
+
+networks:
+  reverseproxy:
+    external: false
+
+volumes:
+  db-data:
+
+services:
+  db:
+    image: mariadb:latest
+    networks:
+      - reverseproxy
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      - TZ=Asia/Tokyo
+      - MYSQL_ROOT_PASSWORD=narikakeisgod
+    volumes:
+      - db-data:/var/lib/mysql
+      - ./docker/config/mysql:/etc/mysql/conf.d
+  phpmyadmin:
+    networks:
+      - reverseproxy
+    depends_on:
+      - db
+    image: phpmyadmin
+    restart: always
+    ports:
+      - "8080:80"
+    volumes:
+      - db-data:/var/lib/mysql
+    environment:
+      - TZ=Asia/Tokyo
+      - PMA_ARBITRARY=1
+      - PMA_HOST=db
+      - PMA_PORT=3306
+      - PMA_USER=root
+      - PMA_PASSWORD=narikakeisgod
+  bungee:
+    build:
+      context: .
+      dockerfile: docker/bungee/Dockerfile
+    image: bungee
+    networks:
+      - reverseproxy
+    depends_on:
+      - db
+  spigot:
+    build:
+      context: .
+      dockerfile: docker/spigot/Dockerfile
+    image: spigot
+    networks:
+      - reverseproxy
+  proxy:
+    build:
+      context: .
+      dockerfile: docker/proxy/Dockerfile
+    image: proxy
+    networks:
+      - reverseproxy
+    ports:
+      - "25565:25565"
+    depends_on:
+      - db
+      - spigot
+      - bungee

@@ -1,0 +1,8 @@
+throttle_time: 1000
+use_proxy_protocol: true
+throttle_limit: 3
+minecraft_host_ip: bungee
+minecraft_host_port: 25577
+check_domain: recraft.click
+timeout_sec: 3
+bind_port: 25565

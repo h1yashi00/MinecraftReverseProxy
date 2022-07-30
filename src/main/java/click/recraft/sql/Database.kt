@@ -5,9 +5,9 @@ import java.sql.Connection
 import java.sql.DriverManager
 
 object Database {
-    private const val url = "jdbc:mysql://localhost/sample_db?useSSL=false"
+    private const val url = "jdbc:mysql://db/connect_history?useSSL=false"
     private const val user = "root"
-    private const val password = "root"
+    private const val password = "narikakeisgod"
     private lateinit var con: Connection
 
     fun connect() {

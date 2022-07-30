@@ -128,10 +128,10 @@ class HandshakeDecoder(private val proxy: MinecraftProxy) : ByteToMessageDecoder
             val nameLen = loginSlice.readByte().toInt()
             val playerName = loginSlice.readCharSequence(nameLen, CharsetUtil.UTF_8).toString()
 
-            if (!URLRequest.checkPlayer(UserName(playerName))) {
-                forceDisconnect(ctx, comeIn, "Migrationの認証が確認できませんでした｡", "minecraft.netに接続して､スキン変更からChange Your Capeより､Migratorを選択してサーバへ再接続してください\n次回のログイン時には､マントの着用の必要はありません｡", logStringBuilder)
-                return
-            }
+//            if (!URLRequest.checkPlayer(UserName(playerName))) {
+//                forceDisconnect(ctx, comeIn, "Migrationの認証が確認できませんでした｡", "minecraft.netに接続して､スキン変更からChange Your Capeより､Migratorを選択してサーバへ再接続してください\n次回のログイン時には､マントの着用の必要はありません｡", logStringBuilder)
+//                return
+//            }
             out.add(ValidLoginPacket(playerName, savedPacket, strBuilder.toString()))
             comeIn.clear()
         }
