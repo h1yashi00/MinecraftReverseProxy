@@ -9,7 +9,7 @@ Minecraft用に作成したリバースプロキシ｡
 
 ## 使用したライブラリ
 [Netty](https://netty.io/)
-主に参考にしたサイト
+## 主に参考にしたサイト
 [Protocol](https://wiki.vg/Protocol)
 
 ### できること
