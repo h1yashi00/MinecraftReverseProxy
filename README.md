@@ -3,14 +3,13 @@ Minecraft用に作成したリバースプロキシ｡
 このソフトウェアは私個人で利用することを目的としていたため､実際にこのソフトウェアを利用してリバースプロキシを作成することは推奨できません｡
 ただ､同じようなプログラムを思いついた方がいれば私の知識を共有できればと思い公開するに至りました｡
 何かしらの質問等があれば
-Discord: はんかけ#0028
+**Discord: はんかけ#0028**
 に連絡いただければサポートもしくは支援できます｡
 
 使用したライブラリ
-Netty
-https://netty.io/
+[Netty](https://netty.io/)
 主に参考にしたサイト
-https://wiki.vg/Protocol
+[Protocol](https://wiki.vg/Protocol)
 
 できること
 Minecraftのパケット以外を通さない｡
@@ -22,7 +21,7 @@ Minecraftのパケット以外を通さない｡
 個人のMinecraftのサーバーを建てる上で鯖主からのDDoS報告が跡を絶たなかったためサーバーを保護するためのプログラムを作成してみたかったから｡
 現在のリバースプロキシの問題
 現在のリバースプロキシ(主に､NginxやHaproxy)では､
-https://twitter.com/tsukkkkkun/status/1356646980542287874?s=20&t=PNq3Ki45mQ595VS1rHxIdQ
+[ここ](https://twitter.com/tsukkkkkun/status/1356646980542287874?s=20&t=PNq3Ki45mQ595VS1rHxIdQ)
 で指摘されている通り､TCPパケットをそのままBungeeCordに届けるだけの仕様のため､単純なTCPのパケットを大量に投げる攻撃に対して意味をなさない｡
 そこでMinecraftのパケットを調べて､マイクラのパケットだった場合にForwardingするようなリバースプロキシを作成すれば解決しそうだなと思い作成した｡
 
