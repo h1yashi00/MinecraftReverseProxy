@@ -1,7 +1,7 @@
 # MinecraftReverseProxy
 
 (2023/12/13)新しく追記
-根本的にDDoS攻撃は､物理的なネットワークの帯域を消耗させるのでこのプロキシサーバを利用しても対策は難しい｡[TCPShield](https://tcpshield.com/)や[Cloudflare Spectrum $1/GB](https://www.cloudflare.com/application-services/products/cloudflare-spectrum/)を利用するのが一番手っ取り早く､確実だと思われるが､現状国内のMinecraftServerはほぼボランティアで運営されているため厳しいのが現状｡
+根本的にDDoS攻撃は､物理的なネットワークの帯域を消耗させるのでこのプロキシサーバを利用しても対策は難しい｡[TCPShield](https://tcpshield.com/)や[Cloudflare Spectrum](https://www.cloudflare.com/application-services/products/cloudflare-spectrum/)を利用するのが一番手っ取り早く､確実だと思われるが､現状国内のMinecraftServerはほぼボランティアで運営されているため厳しいのが現状｡
 このプロキシサーバを改良して､ロードバランサと､複数の小さいVPSを利用してプロキシを構築すれば､安価に対策ができるかもしれない｡
 
 Minecraft用に作成したリバースプロキシ｡
